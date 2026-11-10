@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { FREE_PLANS, sql } from "@/lib/db";
@@ -43,7 +44,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ plan });
   } catch (err) {
     console.error("meal plan generation failed", err);
-    const message = err instanceof Error && err.message.startsWith("The AI") ? err.message : "Couldn't generate a plan right now. Please try again.";
+    let message = "Couldn't generate a plan right now. Please try again.";
+    if (err instanceof Anthropic.APIError) {
+      // API error text never contains the key, so it's safe to show and helps debugging.
+      message = `AI service error (${err.status ?? "network"}): ${err.message.slice(0, 300)}`;
+    } else if (err instanceof Error && err.message.startsWith("The AI")) {
+      message = err.message;
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
